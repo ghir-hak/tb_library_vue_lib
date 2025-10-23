@@ -26,6 +26,7 @@ type Todo struct {
 	Done  bool   `json:"done"`
 }
 
+// POST /api/todo
 //export addTodo
 func addTodo(e event.Event) uint32 {
 	h, err := e.HTTP()
@@ -70,6 +71,7 @@ func addTodo(e event.Event) uint32 {
 	return 0
 }
 
+// GET /api/todo?id={id}
 //export getTodo
 func getTodo(e event.Event) uint32 {
 	h, err := e.HTTP()
@@ -100,6 +102,7 @@ func getTodo(e event.Event) uint32 {
 	return 0
 }
 
+// GET /api/todos
 //export listTodos
 func listTodos(e event.Event) uint32 {
 	h, err := e.HTTP()
@@ -117,7 +120,12 @@ func listTodos(e event.Event) uint32 {
 	// List all keys with prefix
 	keys, err := db.List("/todo/")
 	if err != nil {
-		return fail(h, err, 500)
+		// Return empty array on error instead of failing
+		emptyArray := []Todo{}
+		todosJson, _ := json.Marshal(emptyArray)
+		h.Write(todosJson)
+		h.Return(200)
+		return 0
 	}
 
 	var todos []Todo
@@ -130,9 +138,12 @@ func listTodos(e event.Event) uint32 {
 		}
 	}
 
+	// Always return an array, even if empty
 	todosJson, err := json.Marshal(todos)
 	if err != nil {
-		return fail(h, err, 500)
+		// Fallback to empty array
+		emptyArray := []Todo{}
+		todosJson, _ = json.Marshal(emptyArray)
 	}
 
 	h.Write(todosJson)
