@@ -102,6 +102,39 @@ func getTodo(e event.Event) uint32 {
 	return 0
 }
 
+// DELETE /api/todo?id={id}
+//export deleteTodo
+func deleteTodo(e event.Event) uint32 {
+	h, err := e.HTTP()
+	if err != nil {
+		return 1
+	}
+
+	setCORSHeaders(h)
+
+	id, err := h.Query().Get("id")
+	if err != nil {
+		return fail(h, err, 400)
+	}
+
+	db, err := database.New("/todo/list")
+	if err != nil {
+		return fail(h, err, 500)
+	}
+
+	// Delete the todo
+	key := "/todo/" + id
+	err = db.Delete(key)
+	if err != nil {
+		return fail(h, err, 500)
+	}
+
+	h.Write([]byte("Todo deleted successfully"))
+	h.Return(200)
+
+	return 0
+}
+
 // GET /api/todos
 //export listTodos
 func listTodos(e event.Event) uint32 {
