@@ -14,6 +14,12 @@ func fail(h http.Event, err error, code int) uint32 {
 	return 1
 }
 
+func setCORSHeaders(h http.Event) {
+	h.Headers().Set("Access-Control-Allow-Origin", "*")
+	h.Headers().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	h.Headers().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+}
+
 type Todo struct {
 	ID    string `json:"id"`
 	Text  string `json:"text"`
@@ -26,6 +32,8 @@ func addTodo(e event.Event) uint32 {
 	if err != nil {
 		return 1
 	}
+
+	setCORSHeaders(h)
 
 	// Create & Open the database
 	db, err := database.New("/todo/list")
@@ -50,11 +58,15 @@ func addTodo(e event.Event) uint32 {
 		return fail(h, err, 500)
 	}
 
-	err = db.Put(todo.ID, todoBytes)
+	// Store with proper key prefix
+	key := "/todo/" + todo.ID
+	err = db.Put(key, todoBytes)
 	if err != nil {
 		return fail(h, err, 500)
 	}
 
+	h.Write([]byte("Todo added successfully"))
+	h.Return(200)
 	return 0
 }
 
@@ -64,6 +76,8 @@ func getTodo(e event.Event) uint32 {
 	if err != nil {
 		return 1
 	}
+
+	setCORSHeaders(h)
 
 	id, err := h.Query().Get("id")
 	if err != nil {
@@ -93,15 +107,19 @@ func listTodos(e event.Event) uint32 {
 		return 1
 	}
 
+	setCORSHeaders(h)
+
 	db, err := database.New("/todo/list")
 	if err != nil {
 		return fail(h, err, 500)
 	}
 
-	// Get all keys (this is a simplified approach)
-	// In a real app, you'd want to implement proper listing
-	keys := []string{"todo1", "todo2", "todo3"} // Simplified for demo
-	
+	// List all keys with prefix
+	keys, err := db.List("/todo/")
+	if err != nil {
+		return fail(h, err, 500)
+	}
+
 	var todos []Todo
 	for _, key := range keys {
 		value, err := db.Get(key)
